@@ -1,0 +1,5 @@
+# Supabase CLI local state (project link, tokens)
+supabase/.temp/
+supabase/.branches/
+.env
+.env.*
