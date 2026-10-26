@@ -1,5 +1,7 @@
 # 機師履歷後台：部署說明
 
+系統運作邏輯、更換審核人與日常維護，請見 [../BACKEND.md](../BACKEND.md)。
+
 流程：申請人在「我是機師」填表並設定密碼 → `submit-application` 建立帳號、寫入 `pilot_applications`，用 Resend 寄出含完整履歷的審核信給審核人，並寄收件確認與 Email 驗證信給申請人 → 審核人點信中連結（14 天有效、綁定該次送件）開啟 `/review/`，按「同意」或「要求補件」→ `review-application` 更新狀態並寄信通知申請人 → 補件者登入後修改並重新送出；通過者登入知識中心即可看 `member_content`。
 
 ## 1. 事前準備
