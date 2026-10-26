@@ -8,8 +8,11 @@ const fromB64u = (s: string) =>
 
 export type ReviewToken = { a: string; v: number; r: string; e: number };
 
-const key = () =>
-  crypto.subtle.importKey('raw', enc.encode(Deno.env.get('REVIEW_TOKEN_SECRET')!), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+const key = () => {
+  const secret = Deno.env.get('REVIEW_TOKEN_SECRET') ?? '';
+  if (secret.length < 32) throw new Error('REVIEW_TOKEN_SECRET is missing or shorter than 32 characters');
+  return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+};
 
 export async function signReviewToken(applicationId: string, version: number, reviewer: string, days = 14) {
   const payload: ReviewToken = { a: applicationId, v: version, r: reviewer, e: Date.now() + days * 86400_000 };
