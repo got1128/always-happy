@@ -1,6 +1,13 @@
-# 機師履歷後端說明
+# 網站後端說明
 
-本文件說明「我是機師」履歷表單背後的系統如何運作，以及日常維護方式（更換審核人、新增會員內容、排除寄信問題）。初次部署步驟請見 [supabase/README.md](supabase/README.md)。
+本文件說明網站表單背後的系統如何運作，以及日常維護方式（更換審核人、新增會員內容、排除寄信問題）。初次部署步驟請見 [supabase/README.md](supabase/README.md)。
+
+網站有兩種表單：
+
+| 表單 | 頁面 | 流程 |
+| --- | --- | --- |
+| **機師履歷** | 我是機師 | 送出時註冊帳號 → 審核人同意或要求補件 → 通過者成為會員（第 2～4 節） |
+| **諮詢表單** | 想成為機師、空服員招生、航空公司合作 | 不需註冊、沒有審核流程：存檔 → 通知負責人 → 寄收件確認給填表人（第 4A 節） |
 
 ## 1. 系統組成
 
@@ -98,7 +105,23 @@ stateDiagram-v2
 | `pilot_application_events` | 送件、補件、審核、寄信失敗的完整紀錄 | 僅後台（Supabase Dashboard） |
 | `member_content` | 會員專區文章（標題、內文、是否發布） | 僅**已通過審核**的機師 |
 
+| `service_enquiries` | 三個諮詢表單的資料，含編號（`AHE-日期-流水號`）、類型、寄信錯誤 | 僅後台（Supabase Dashboard） |
+
 權限由資料庫的 Row Level Security 控管。就算有人繞過網頁直接呼叫 API，也讀不到別人的履歷或會員內容。
+
+## 4A. 諮詢表單（`submit-enquiry`）
+
+「想成為機師」「空服員招生」「航空公司合作」三個頁面的表單共用一個 Edge Function：
+
+1. 依表單類型（`type`：`aspiring`／`cabin`／`airlines`）檢查必填欄位與選項。
+2. 同一個 Email **2 分鐘內只能送出一次**，避免重複送出或被大量灌單。
+3. 寫入 `service_enquiries`：姓名、Email 存在獨立欄位，其餘欄位存在 `data`（JSON）。
+4. 寄通知信給負責人。信件的「回覆」地址就是填表人的 Email，**直接按回覆就能聯繫對方**。
+5. 寄收件確認信給填表人，語言依填表人選擇的網站語言。
+
+寄信失敗不會讓送件失敗，錯誤記錄在該筆資料的 `email_error` 欄位。
+
+**通知對象**：預設和機師履歷的審核人相同（`REVIEWER_EMAILS`）。如果想讓諮詢信寄給不同的人，另外設定 `ENQUIRY_EMAILS` 即可（見第 5 節）。
 
 ## 5. 設定值（Edge Function Secrets）
 
@@ -107,6 +130,7 @@ stateDiagram-v2
 | 名稱 | 用途 | 範例 |
 | --- | --- | --- |
 | `REVIEWER_EMAILS` | 審核人信箱，多位以逗號分隔 | `審核人A@example.com,審核人B@example.com` |
+| `ENQUIRY_EMAILS` | （選填）諮詢表單的通知對象；未設定時使用 `REVIEWER_EMAILS` | `業務窗口@example.com` |
 | `MAIL_FROM` | 寄件人，網域必須是 Resend 已驗證的網域 | `Always Happy <noreply@alwhappy.com>` |
 | `SITE_URL` | 網站網址，用來產生信中的連結，結尾不加 `/` | `https://got1128.github.io/always-happy` |
 | `RESEND_API_KEY` | Resend 金鑰 | （機密） |
@@ -145,6 +169,7 @@ npx supabase secrets set --project-ref kfhnwmskyayztkqjsvlx "REVIEWER_EMAILS=審
 | 要做的事 | 在哪裡做 |
 | --- | --- |
 | 查看所有申請 | Dashboard → **Table Editor → `pilot_applications`** |
+| 查看諮詢表單 | **Table Editor → `service_enquiries`**，依 `type` 篩選類型 |
 | 查看某案件的處理紀錄 | **Table Editor → `pilot_application_events`**，依 `application_id` 篩選 |
 | 新增會員文章 | **Table Editor → `member_content`** → Insert row，填 `title`、`body`；`published` 設為 `false` 可先隱藏 |
 | 刪除申請人（含其履歷） | **Authentication → Users** → 刪除該使用者，履歷與紀錄會一併刪除 |
@@ -153,7 +178,9 @@ npx supabase secrets set --project-ref kfhnwmskyayztkqjsvlx "REVIEWER_EMAILS=審
 
 ## 8. 疑難排解
 
-沒收到信時，先到 **Table Editor → `pilot_application_events`** 找 `action = email_failed` 的資料，`note` 欄位就是錯誤原因。
+沒收到信時，先查錯誤原因：
+- 機師履歷：**Table Editor → `pilot_application_events`**，找 `action = email_failed` 的資料，看 `note` 欄位。
+- 諮詢表單：**Table Editor → `service_enquiries`**，看該筆資料的 `email_error` 欄位。
 
 | 錯誤訊息 | 原因 | 處理 |
 | --- | --- | --- |
@@ -183,4 +210,4 @@ npx supabase secrets set --project-ref kfhnwmskyayztkqjsvlx "REVIEWER_EMAILS=審
 - 附件上傳（PDF 履歷、執照影本）
 - 「不通過」狀態
 - 後台案件列表頁（目前使用 Supabase Table Editor）
-- 培訓機師、空服員、企業合作、聯絡我們等其他表單仍為預覽，不會儲存資料
+- 「聯絡我們」頁沒有表單，訪客以 Email 或電話聯繫

@@ -6,9 +6,9 @@
 /* Restored Version 4 pilot-profile preview: deliberately no data submission. */
 .v5-profile-section{background:#f0f4f4!important}
 .v5-profile-intro{color:#536c77;max-width:780px;margin:-4px 0 28px;font-size:14px}
-#pilot-profile-form{display:grid;gap:24px}
-#pilot-profile-form fieldset{border:1px solid #d6e1e5;border-radius:9px;background:white;padding:24px;margin:0;min-width:0}
-#pilot-profile-form legend{font-weight:750;color:#163c53;font-size:17px;padding:0 10px}
+#pilot-profile-form,.v5-service-form{display:grid;gap:24px}
+#pilot-profile-form fieldset,.v5-service-form fieldset{border:1px solid #d6e1e5;border-radius:9px;background:white;padding:24px;margin:0;min-width:0}
+#pilot-profile-form legend,.v5-service-form legend{font-weight:750;color:#163c53;font-size:17px;padding:0 10px}
 .v5-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .v5-field{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:650;color:#334e5e}
 .v5-field input,.v5-field select,.v5-field textarea{width:100%;min-width:0;border:1px solid #ccd9de;background:#fcfdfd;border-radius:6px;padding:10px 11px;font:inherit;font-weight:400;color:#193449}
@@ -20,7 +20,7 @@
 .v5-profile-actions button{cursor:pointer}
 .v5-profile-actions p{font-size:13px;color:#51734e;margin:0}
 @media(max-width:800px){.v5-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:560px){.v5-fields{grid-template-columns:1fr}#pilot-profile-form fieldset{padding:18px}}
+@media(max-width:560px){.v5-fields{grid-template-columns:1fr}#pilot-profile-form fieldset,.v5-service-form fieldset{padding:18px}}
 
 /* Footer: consistent top alignment and a single-line company name. */
 .v5-footer-main{grid-template-columns:minmax(285px,1.25fr) minmax(210px,1fr) minmax(250px,1.1fr);align-items:start;gap:28px}

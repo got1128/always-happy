@@ -5,11 +5,11 @@ export const escapeHtml = (s: string) =>
 
 export const siteUrl = () => (Deno.env.get('SITE_URL') ?? '').replace(/\/+$/, '');
 
-export async function sendMail(to: string, subject: string, html: string) {
+export async function sendMail(to: string, subject: string, html: string, replyTo?: string) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: Deno.env.get('MAIL_FROM'), to, subject, html }),
+    body: JSON.stringify({ from: Deno.env.get('MAIL_FROM'), to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }
@@ -26,14 +26,18 @@ const paragraph = (s: string) => `<p>${escapeHtml(s)}</p>`;
 const note = (s: string) =>
   `<p style="white-space:pre-wrap;background:#f7f6f2;padding:12px 14px;border-radius:6px">${escapeHtml(s)}</p>`;
 
-export function reviewerEmail(app: Application, reviewUrl: string, resubmitted: boolean) {
-  const rows = displayRows(app)
+const rowsTable = (rows: [string, string][]) =>
+  `<table style="border-collapse:collapse;width:100%;font-size:14px">` +
+  rows
     .map(([k, v]) => `<tr><th style="text-align:left;padding:8px 10px;background:#fafbfb;border-bottom:1px solid #edf1f2;width:36%;vertical-align:top">${escapeHtml(k)}</th><td style="padding:8px 10px;border-bottom:1px solid #edf1f2;white-space:pre-wrap">${escapeHtml(v)}</td></tr>`)
-    .join('');
+    .join('') +
+  `</table>`;
+
+export function reviewerEmail(app: Application, reviewUrl: string, resubmitted: boolean) {
   const subject = `[機師履歷${resubmitted ? '・補件' : ''}] ${app.case_no} ${app.full_name}`;
   const html = layout(
     `<h2 style="margin-top:0">${resubmitted ? '申請人已完成補件' : '新的機師履歷'}：${escapeHtml(String(app.case_no))}</h2>` +
-      `<table style="border-collapse:collapse;width:100%;font-size:14px">${rows}</table>` +
+      rowsTable(displayRows(app)) +
       button(reviewUrl, '開啟審核頁面（同意／要求補件）') +
       `<p style="font-size:12px;color:#61717b">此連結 14 天內有效，僅供指定審核人使用，請勿轉寄。申請人重新送出後，舊連結即失效。</p>`,
   );
@@ -79,6 +83,26 @@ export function approvedEmail(app: Application) {
   const c = pick(app.language);
   const html = layout(paragraph(c.approvedBody.replace('{case}', String(app.case_no))) + button(`${siteUrl()}/insights/#member-area`, c.approvedButton));
   return { subject: `${c.approved}｜${app.case_no}`, html };
+}
+
+export function staffEnquiryEmail(caseNo: string, title: string, name: string, rows: [string, string][]) {
+  const html = layout(
+    `<h2 style="margin-top:0">新的${escapeHtml(title)}：${escapeHtml(caseNo)}</h2>` +
+      rowsTable(rows) +
+      `<p style="font-size:12px;color:#61717b">直接回覆此信即可聯繫填表人。此信含個人資料，請勿轉寄。</p>`,
+  );
+  return { subject: `[${title}] ${caseNo} ${name}`, html };
+}
+
+const enquiryCopy = {
+  'zh-Hant': { subject: '已收到你的諮詢', body: '感謝你與 Always Happy 聯繫。我們已收到你的資料（編號 {case}），將由專人盡快以 Email 回覆。' },
+  'zh-Hans': { subject: '已收到你的咨询', body: '感谢你与 Always Happy 联系。我们已收到你的资料（编号 {case}），将由专人尽快通过电子邮件回复。' },
+  en: { subject: 'We have received your enquiry', body: 'Thank you for contacting Always Happy. We have received your details (reference {case}) and our team will reply by email shortly.' },
+};
+
+export function enquiryReceivedEmail(caseNo: string, language: unknown) {
+  const c = enquiryCopy[(language as Lang) in enquiryCopy ? (language as Lang) : 'zh-Hant'];
+  return { subject: `${c.subject}｜${caseNo}`, html: layout(paragraph(c.body.replace('{case}', caseNo))) };
 }
 
 export function needsInfoEmail(app: Application, reviewNote: string) {
